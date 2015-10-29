@@ -1,5 +1,6 @@
 require 'bundler/setup'
 require 'sexpistol'
+require 'pry'
 
 def rest(expression)
   copy = expression.dup
@@ -8,6 +9,15 @@ def rest(expression)
 end
 
 module Ugh
+  class Arg
+    def initialize(expr)
+      @expr = expr
+    end
+
+    def to_bash
+      @expr
+    end
+  end
   class Environment
 
     attr_accessor :parent
@@ -49,6 +59,9 @@ module Ugh
 
     def expression_to_bash(expression)
       return expression if expression.is_a?(Integer)
+      return expression if expression.is_a?(String)
+      return expression.to_bash if expression.is_a?(Arg)
+
       if expression[0] == :define
         @table[expression[1]] = expression[2]
         "#{expression[1]}=#{expression[2]}"
@@ -56,31 +69,44 @@ module Ugh
         "echo #{expression_to_bash(expression[1])}"
       elsif expression[0] == :dollar
         "$#{expression[1]}"
+      elsif expression[0] == :invoke
+        function_call = expression[1]
+        function_name = function_call[0]
+        args = rest(function_call)
+        "#{function_name} #{args.join(' ')}"
       elsif expression[0] == :add
         "$((#{expression_to_bash(expression[1])} + #{expression_to_bash(expression[2])}))"
       elsif expression[0] == :function
         function_name = expression[1]
-        if expression[2].is_a?(Array)
-          # function with arguments
+        if expression.length == 4
+          # arguments are provided
+          raw_args = expression[2]
+          args = raw_args.each_with_index.map do |arg, index|
+            "#{arg}=$#{index+1}"
+          end.join("/n")
+          expr = expression.last.map do |element|
+            if raw_args.include?(element)
+              "$#{element.to_s}"
+            else
+              element
+            end
+          end
 <<-FUNCTION_WITH_ARGS
 #{function_name} () {
-  # args go here
-  #{expression[3]}
+  #{args}
+  #{expression_to_bash(expr)}
 }
 FUNCTION_WITH_ARGS
-        else
-          # function without arguments
+        elsif expression.length == 3
+        # no arguments
 <<-FUNCTION_WITHOUT_ARGS
 #{function_name} () {
-  # no args to declare
-  #{expression_to_bash(expression[2])}
+  #{expression_to_bash(expression.last)}
 }
 FUNCTION_WITHOUT_ARGS
         end
       end
     end
-
-
 
     def run(program)
       expressions = Sexpistol.new.parse_string(program)
