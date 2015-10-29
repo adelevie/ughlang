@@ -9,6 +9,7 @@ def rest(expression)
 end
 
 module Ugh
+
   class Arg
     def initialize(expr)
       @expr = expr
@@ -18,35 +19,8 @@ module Ugh
       @expr
     end
   end
-  class Environment
-
-    attr_accessor :parent
-
-    def initialize(parent = nil)
-      @parent = parent
-      @table = {}
-    end
-
-    def find(name)
-      return @table[name] if @table.has_key?(name)
-      return nil if @parent.nil?
-      return @parent.find(name)
-    end
-
-    def define(name, value)
-      @table[name] = value
-    end
-  end
 
   class Interpreter
-    attr_accessor :base_environment,
-                  :current_environment
-
-    def initialize
-      @base_environment = @current_environment = Ugh::Environment.new
-      @table = {}
-    end
-
     def transpile(program)
       expressions = Sexpistol.new.parse_string(program)
       result = []
@@ -57,14 +31,35 @@ module Ugh
       return result.join("\n")+"\n"
     end
 
+    def all_bash_commands
+      `echo -n $PATH | xargs -d : -I {} find {} -maxdepth 1 -executable -type f -printf '%P\n' | sort -u`.split.map(&:to_sym)
+    end
+
     def expression_to_bash(expression)
       return expression if expression.is_a?(Integer)
       return expression if expression.is_a?(String)
       return expression.to_bash if expression.is_a?(Arg)
 
-      if expression[0] == :define
-        @table[expression[1]] = expression[2]
-        "#{expression[1]}=#{expression[2]}"
+      if expression[0] == :def
+        "#{expression[1]}=#{expression_to_bash(expression[2])}"
+      elsif expression[0] == :backticks
+        result = rest(expression).map do |expression|
+          expression_to_bash(expression)
+        end.join(' ')
+        # backticks are tough to escape
+        str = "\`#{result}"
+        str = str+"\`"
+        str
+      elsif expression[0] == :bash
+        rest(expression).map do |expression|
+          expression
+        end.join(' ')
+      elsif expression[0] == :str
+        chunks = rest(expression)
+        result = chunks.inject do |memo, word|
+          "#{memo}#{expression_to_bash(word)}"
+        end
+        result.to_s
       elsif expression[0] == :echo
         "echo #{expression_to_bash(expression[1])}"
       elsif expression[0] == :dollar
@@ -105,32 +100,6 @@ FUNCTION_WITH_ARGS
 }
 FUNCTION_WITHOUT_ARGS
         end
-      end
-    end
-
-    def run(program)
-      expressions = Sexpistol.new.parse_string(program)
-      result = nil
-      expressions.each do |expression|
-        result = evaluate(expression)
-      end
-      return result
-    end
-
-    def evaluate(expression)
-      return @current_environment.find(expression) if expression.is_a?(Symbol)
-      return expression unless expression.is_a?(Array)
-
-      if expression[0] == :define
-        return @current_environment.define(expression[1], evaluate(expression[2]))
-
-      elsif expression[0] == :native_function
-        return eval(expression[1])
-
-      else # function call
-        function = evaluate(expression[0])
-        arguments = expression.slice(1, expression.length)
-        return function.call(arguments, self)
       end
     end
 

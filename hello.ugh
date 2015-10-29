@@ -1,12 +1,5 @@
-(define foo "bar")
-(echo (dollar foo))
-(echo (add 10 12))
-(echo (add 10 (add 2 6)))
+(def directory (backticks (bash pwd)))
+(echo (dollar directory))
 
-(function hello (echo "hi"))
-
-(function custom (x) (echo x))
-
-(invoke (hello))
-
-(invoke (custom "wub"))
+(def gemfile (backticks (bash cat Gemfile)))
+(echo (dollar gemfile))
