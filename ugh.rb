@@ -31,6 +31,7 @@ module Ugh
       return result.join("\n")+"\n"
     end
 
+    # this might come in handy
     def all_bash_commands
       `echo -n $PATH | xargs -d : -I {} find {} -maxdepth 1 -executable -type f -printf '%P\n' | sort -u`.split.map(&:to_sym)
     end
@@ -64,11 +65,21 @@ module Ugh
         "echo #{expression_to_bash(expression[1])}"
       elsif expression[0] == :dollar
         "$#{expression[1]}"
+      elsif expression[0] == :begin
+        expressions = rest(expression)
+        expressions.map do |expression|
+          "#{expression_to_bash(expression)}"
+        end.join("\n")
       elsif expression[0] == :invoke
-        function_call = expression[1]
-        function_name = function_call[0]
-        args = rest(function_call)
-        "#{function_name} #{args.join(' ')}"
+        if expression.length == 3
+          expression.shift
+          function_name = expression.shift
+          args = expression
+          "#{function_name} #{args.join(' ')}"
+        elsif expression.length == 2
+          function_name = expression[1]
+          "#{function_name}"
+        end
       elsif expression[0] == :add
         "$((#{expression_to_bash(expression[1])} + #{expression_to_bash(expression[2])}))"
       elsif expression[0] == :function
@@ -78,7 +89,7 @@ module Ugh
           raw_args = expression[2]
           args = raw_args.each_with_index.map do |arg, index|
             "#{arg}=$#{index+1}"
-          end.join("/n")
+          end.join('; ')
           expr = expression.last.map do |element|
             if raw_args.include?(element)
               "$#{element.to_s}"
