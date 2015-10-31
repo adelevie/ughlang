@@ -1,11 +1,13 @@
 #!/bin/bash
 
-my_list=(1 2 3 4 5 6)
-echo ${my_list[0]}
-my_list[0]=11
-echo ${#my_list[@]}
-eight=8
-my_list=("${my_list[@]}" $eight)
-echo ${#my_list[@]}
-$eight
-my_list=("${my_list[@]}" $1)
+urls=(https://18f.gsa.gov/2015/10/26/micro-purchase-criteria-announcement/ https://18f.gsa.gov/2015/10/29/welcome-to-betafec/ https://18f.gsa.gov/2015/10/22/preventing-technical-debt/)
+anon_function_VDRQXDEHDFYYSVZPIQOR () {
+    local x=$1; shift
+
+  echo $x
+pa11y -r json $x | jq .[] | jq .message
+}
+
+for i in ${urls[@]}; do
+  anon_function_VDRQXDEHDFYYSVZPIQOR $i
+done

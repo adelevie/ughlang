@@ -38,6 +38,10 @@ module Ugh
       dup.shift
       dup
     end
+
+    def self.random_string
+      (0...20).map { (65 + rand(26)).chr }.join
+    end
   end
 
   module StdLib
@@ -55,6 +59,14 @@ module Ugh
 
     def self.eval(expr)
       "\`#{expr}\`"
+    end
+
+    def self.apply(function_name, expressions)
+      "#{function_name} #{expressions.join(' ')}"
+    end
+
+    def self.pipe(expressions)
+      expressions.join(' | ')
     end
 
     def self.defn(function_name, function_args, function_body)
@@ -143,6 +155,16 @@ module Ugh
     def self.append(list_name, item)
       "#{list_name}=(\"${#{list_name}[@]}\" #{item})"
     end
+
+    def self.each(items, function_name, function_args, function_body)
+      function = StdLib::defn(function_name, function_args, function_body)
+      str = <<-END.gsub(/^ {6}/, '')
+      for i in #{items}; do
+        #{function_name} $i
+      done
+      END
+      [function, str.rstrip].join("\n")
+    end
   end
 
   class Interpreter
@@ -161,6 +183,7 @@ module Ugh
     def expression_to_bash(expression)
       return expression.to_bash if expression.is_a?(BashLiteral)
       return Util::quote_string(expression) if expression.is_a?(String)
+      return expression.to_s if expression.is_a?(Symbol)
       return expression if expression.is_a?(Integer)
 
       case expression[0]
@@ -181,10 +204,23 @@ module Ugh
       when :eval
         expr = expression_to_bash(expression[1])
         StdLib::eval(expr)
+      when :apply
+        function_name = expression[1]
+        expression.shift
+        expression.shift
+        expressions = expression.map {|expr| expression_to_bash(expr)}
+        StdLib::apply(function_name, expressions)
+      when :pipe
+        expressions = Util::rest(expression).map do |expr|
+          expression_to_bash(expr)
+        end
+        StdLib::pipe(expressions)
       when :defn
         function_name = Util::dashes_to_underscore(expression[1])
         function_args = expression[2]
         function_body = expression_to_bash(expression[3])
+        StdLib::defn(function_name, function_args, function_body)
+    when :do
         expressions = rest(expression)
         expressions.map {|expr| expression_to_bash(expr)}.join("\n")
       when :local
@@ -244,6 +280,18 @@ module Ugh
         list_name = Util::dashes_to_underscore(expression[1])
         item = expression_to_bash(expression[2])
         StdLib::append(list_name, item)
+      when :lambda
+        function_name = "anon_function_#{Util::random_string}"
+        function_args = expression[1]
+        function_body = expression_to_bash(expression[2])
+        StdLib::defn(function_name, function_args, function_body).rstrip
+      when :each
+        items = expression_to_bash(expression[1])
+        function = expression[2]
+        function_name = "anon_function_#{Util::random_string}"
+        function_args = function[1]
+        function_body = expression_to_bash(function[2])
+        StdLib::each(items, function_name, function_args, function_body).rstrip
       else
         expression.join(' ')
       end
