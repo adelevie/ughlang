@@ -165,6 +165,10 @@ module Ugh
       END
       [function, str.rstrip].join("\n")
     end
+
+    def self.str(items)
+      items
+    end
   end
 
   class Interpreter
@@ -181,8 +185,8 @@ module Ugh
     end
 
     def expression_to_bash(expression)
-      return expression.to_bash if expression.is_a?(BashLiteral)
       return Util::quote_string(expression) if expression.is_a?(String)
+      return expression.to_bash if expression.is_a?(BashLiteral)
       return expression.to_s if expression.is_a?(Symbol)
       return expression if expression.is_a?(Integer)
 
@@ -292,6 +296,11 @@ module Ugh
         function_args = function[1]
         function_body = expression_to_bash(function[2])
         StdLib::each(items, function_name, function_args, function_body).rstrip
+      when :str
+        chunks = rest(expression)
+        chunks.inject do |memo, word|
+          "#{memo}#{expression_to_bash(word)}"
+        end
       else
         expression.join(' ')
       end

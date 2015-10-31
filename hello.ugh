@@ -5,7 +5,7 @@
 
 (each (inspect urls) (lambda (x)
   (do
-    (echo (dollar x))
+    (echo (str "Getting a11y error messages for url: " (dollar x)))
     (pipe
       (apply pa11y -r json (dollar x))
       (jq .[])
