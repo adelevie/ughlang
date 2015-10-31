@@ -1,27 +1,9 @@
-(def directory (backticks (bash pwd)))
-(echo (dollar directory))
+(deflist my-list 1 2 3 4 5 6)
 
-(def gemfile (backticks (bash cat Gemfile)))
-(echo (dollar gemfile))
+(echo (get my-list 0))
 
-(echo (str "h" "e" "l" (str "l" "o")))
+(set my-list 0 11)
 
-(function say (x) (echo x))
-(invoke say "Alan")
+(echo (get my-list 0))
 
-(function say_hi () (echo "hi"))
-(invoke say_hi)
-
-(function fill_pdf (key value input output)
-  (bash pdfq set key value input output))
-
-(begin (echo 1) (echo 2) (echo (str "y" "o")))
-
-(function do_some_things (x) (begin
-  (echo 1)
-  (echo 2)
-  (echo 3)
-  (echo (add 10 12))
-))
-
-(invoke do_some_things)
+(echo (dollar my-list))

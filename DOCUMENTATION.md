@@ -326,7 +326,7 @@ fi
 However, you bind a list to a value using `deflist`:
 
 ```lisp
-(deflist my-list (1 2 3 4 5))
+(deflist my-list 1 2 3 4 5)
 ```
 
 ```bash
