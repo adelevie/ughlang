@@ -21,6 +21,10 @@ module Ugh
   end
 
   module Util
+    def self.parse_string(program)
+      Sexpistol.new.parse_string(program)
+    end
+
     def self.dashes_to_underscore(sym)
       sym.to_s.gsub('-', '_')
     end
@@ -125,17 +129,25 @@ module Ugh
     end
 
     def self.get(list_name, index)
-      "${##{list_name}[#{index}]}"
+      "${#{list_name}[#{index}]}"
     end
 
     def self.set(list_name, index, value)
       "#{list_name}[#{index}]=#{value}"
     end
+
+    def self.length(list_name)
+      "${##{list_name}[@]}"
+    end
+
+    def self.append(list_name, item)
+      "#{list_name}=(\"${#{list_name}[@]}\" #{item})"
+    end
   end
 
   class Interpreter
     def transpile(program)
-      expressions = Sexpistol.new.parse_string(program)
+      expressions = Util::parse_string(program)
       result = []
       result << "#!/bin/bash"
       result << ""
@@ -150,7 +162,6 @@ module Ugh
       return expression.to_bash if expression.is_a?(BashLiteral)
       return Util::quote_string(expression) if expression.is_a?(String)
       return expression if expression.is_a?(Integer)
-      return expression.to_s if expression.is_a?(Symbol)
 
       case expression[0]
       when :echo
@@ -223,6 +234,16 @@ module Ugh
         index = expression_to_bash(expression[2])
         value = expression_to_bash(expression[3])
         StdLib::set(list_name, index, value)
+      when :inspect
+        list_name = Util::dashes_to_underscore(expression[1])
+        StdLib::get(list_name, "@")
+      when :length
+        list_name = Util::dashes_to_underscore(expression[1])
+        StdLib::length(list_name)
+      when :append
+        list_name = Util::dashes_to_underscore(expression[1])
+        item = expression_to_bash(expression[2])
+        StdLib::append(list_name, item)
       else
         expression.join(' ')
       end

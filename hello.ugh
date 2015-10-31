@@ -4,6 +4,14 @@
 
 (set my-list 0 11)
 
-(echo (get my-list 0))
+(echo (length my-list))
 
-(echo (dollar my-list))
+(def eight 8)
+
+(append my-list (dollar eight))
+
+(echo (length my-list))
+
+(dollar eight)
+
+(append my-list (dollar 1))
