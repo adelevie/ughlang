@@ -209,7 +209,7 @@ module Ugh
         expr = expression_to_bash(expression[1])
         StdLib::eval(expr)
       when :apply
-        function_name = expression[1]
+        function_name = Util::dashes_to_underscore(expression[1])
         expression.shift
         expression.shift
         expressions = expression.map {|expr| expression_to_bash(expr)}
@@ -298,9 +298,8 @@ module Ugh
         StdLib::each(items, function_name, function_args, function_body).rstrip
       when :str
         chunks = rest(expression)
-        chunks.inject do |memo, word|
-          "#{memo}#{expression_to_bash(word)}"
-        end
+        chunks.map! {|expr| expression_to_bash(expr)}
+        chunks.join
       else
         expression.join(' ')
       end
