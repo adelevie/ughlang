@@ -7,6 +7,15 @@
   (do
     (echo (str "Getting a11y error messages for url: " (dollar x)))
     (pipe
-      (apply pa11y -r json (dollar x))
+      (pa11y -r json (dollar x))
       (jq .[])
       (jq .message)))))
+
+(def foo (lambda (x y z)
+  (do
+    (echo "hello")
+    (echo "goodbye"))))
+
+(defn say-hello (echo "hello"))
+
+(defn say-message (message) (echo (dollar message)))

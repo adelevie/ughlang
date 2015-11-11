@@ -1,0 +1,8 @@
+<%= function_name -%> () {
+  <% function_args.each do |a| -%>
+local <%= a -%>=$1; shift
+  <% end -%>
+
+  <%= function_body -%>
+
+}

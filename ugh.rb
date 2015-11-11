@@ -1,6 +1,8 @@
 require 'bundler/setup'
 require 'sexpistol'
 require 'pry'
+require 'tilt'
+require 'erb'
 
 def rest(expression)
   copy = expression.dup
@@ -54,7 +56,7 @@ module Ugh
     end
 
     def self.dollar(variable)
-      "$#{variable}"
+      "$#{variable}".gsub(/"/, '')
     end
 
     def self.eval(expr)
@@ -70,22 +72,30 @@ module Ugh
     end
 
     def self.defn(function_name, function_args, function_body)
-      str = nil
-      if function_args.length > 0
-        str = <<-END.gsub(/^ {8}/, '')
-        #{function_name} () {
-          #{function_args.map {|a| "  local #{a}=$1; shift"}.join("\n")}
-
-          #{function_body}
-        }
-        END
-      else
-        str = <<-END.gsub(/^ {8}/, '')
-        #{function_name} () {
-          #{function_body}
-        }
-        END
-      end
+      template = Tilt::ERBTemplate.new('templates/defn.erb', trim: '-')
+      ctx = self
+      str = template.render(self, {
+        function_name: function_name,
+        function_args: function_args,
+        function_body: function_body
+      })
+      # str = nil
+      # if function_args.length > 0
+      #   str = <<-END.gsub(/^ {8}/, '')
+      #   #{function_name} () {
+      #     #{function_args.map {|a| "  local #{a}=$1; shift"}.join("\n")}
+      #
+      #     #{function_body}
+      #   }
+      #   END
+      # else
+      #   str = <<-END.gsub(/^ {8}/, '')
+      #   #{function_name} () {
+      #     #{function_body}
+      #   }
+      #   END
+      # end
+      str
     end
 
     def self.local(key, value)
@@ -169,6 +179,14 @@ module Ugh
     def self.str(items)
       items
     end
+
+    def self._do(expressions)
+      template = Tilt::ERBTemplate.new('templates/do.erb', trim: '-')
+      ctx = self
+      str = template.render(self, {
+        expressions: expressions
+      })
+    end
   end
 
   class Interpreter
@@ -201,7 +219,7 @@ module Ugh
       when :dollar
         variable = expression_to_bash(
           BashLiteral.new(
-            Util::dashes_to_underscore(expression[1])
+            Util::dashes_to_underscore(expression_to_bash(expression[1]))
           )
         )
         StdLib::dollar(variable)
@@ -220,13 +238,23 @@ module Ugh
         end
         StdLib::pipe(expressions)
       when :defn
-        function_name = Util::dashes_to_underscore(expression[1])
-        function_args = expression[2]
-        function_body = expression_to_bash(expression[3])
-        StdLib::defn(function_name, function_args, function_body)
-    when :do
+        # arguments are *not* defined in function
+        if expression.length == 3
+          function_name = Util::dashes_to_underscore(expression[1])
+          function_args = []
+          function_body = expression_to_bash(expression[2])
+          StdLib::defn(function_name, function_args, function_body)
+        # arguments are defined in function
+        elsif expression.length == 4
+          function_name = Util::dashes_to_underscore(expression[1])
+          function_args = expression[2]
+          function_body = expression_to_bash(expression[3])
+          StdLib::defn(function_name, function_args, function_body)
+        end
+      when :do
         expressions = rest(expression)
-        expressions.map {|expr| expression_to_bash(expr)}.join("\n")
+        expressions.map! {|expr| expression_to_bash(expr)}
+        StdLib::_do(expressions)
       when :local
         key = Util::dashes_to_underscore(expression[1])
         value = expression_to_bash(expression[2])
@@ -301,7 +329,8 @@ module Ugh
         chunks.map! {|expr| expression_to_bash(expr)}
         chunks.join
       else
-        expression.join(' ')
+        expressions = expression.map {|expr| expression_to_bash(expr)}
+        expressions.join(' ')
       end
     end
 
