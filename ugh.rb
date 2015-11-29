@@ -44,6 +44,12 @@ module Ugh
     def self.random_string
       (0...20).map { (65 + rand(26)).chr }.join
     end
+
+    def self.function_name
+      @counter ||= 0
+      @counter = @counter + 1
+      "function_#{@counter.to_s}"
+    end
   end
 
   module StdLib
@@ -79,22 +85,6 @@ module Ugh
         function_args: function_args,
         function_body: function_body
       })
-      # str = nil
-      # if function_args.length > 0
-      #   str = <<-END.gsub(/^ {8}/, '')
-      #   #{function_name} () {
-      #     #{function_args.map {|a| "  local #{a}=$1; shift"}.join("\n")}
-      #
-      #     #{function_body}
-      #   }
-      #   END
-      # else
-      #   str = <<-END.gsub(/^ {8}/, '')
-      #   #{function_name} () {
-      #     #{function_body}
-      #   }
-      #   END
-      # end
       str
     end
 
@@ -129,21 +119,14 @@ module Ugh
     end
 
     def self.if(condition, true_block, false_block)
-      if false_block
-        str = <<-END.gsub(/^ {8}/, '')
-        if #{condition}; then
-          #{true_block}
-        else
-          #{false_block}
-        fi
-        END
-      else
-        str = <<-END.gsub(/^ {8}/, '')
-        if #{condition}; then
-          #{true_block}
-        fi
-        END
-      end
+      template = Tilt::ERBTemplate.new('templates/if.erb', trim: '-')
+      ctx = self
+      str = template.render(self, {
+        condition: condition,
+        true_block: true_block,
+        false_block: false_block
+      })
+      str
     end
 
     def self.deflist(list_name, items)
@@ -162,8 +145,8 @@ module Ugh
       "${##{list_name}[@]}"
     end
 
-    def self.append(list_name, item)
-      "#{list_name}=(\"${#{list_name}[@]}\" #{item})"
+    def self.append(list_name, items)
+      "#{list_name}=(\"${#{list_name}[@]}\" #{items.join(' ')})"
     end
 
     def self.each(items, function_name, function_args, function_body)
@@ -310,17 +293,19 @@ module Ugh
         StdLib::length(list_name)
       when :append
         list_name = Util::dashes_to_underscore(expression[1])
-        item = expression_to_bash(expression[2])
-        StdLib::append(list_name, item)
+        expression.shift # remove :append
+        expression.shift # remove list name
+        items = expression.map {|expr| expression_to_bash(expr)}
+        StdLib::append(list_name, items)
       when :lambda
-        function_name = "anon_function_#{Util::random_string}"
+        function_name = Util::function_name
         function_args = expression[1]
         function_body = expression_to_bash(expression[2])
         StdLib::defn(function_name, function_args, function_body).rstrip
       when :each
         items = expression_to_bash(expression[1])
         function = expression[2]
-        function_name = "anon_function_#{Util::random_string}"
+        function_name = Util::function_name
         function_args = function[1]
         function_body = expression_to_bash(function[2])
         StdLib::each(items, function_name, function_args, function_body).rstrip

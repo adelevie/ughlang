@@ -3,19 +3,22 @@
   "https://18f.gsa.gov/2015/10/29/welcome-to-betafec/"
   "https://18f.gsa.gov/2015/10/22/preventing-technical-debt/")
 
-(each (inspect urls) (lambda (x)
+(defn get-type-from-url (url)
+  (pipe
+    (pa11y -r json (dollar url))
+    (jq .[])
+    (jq .type)))
+
+(deflist errors)
+(deflist warnings)
+(deflist notices)
+
+(each (inspect urls) (lamba (url)
   (do
-    (echo (str "Getting a11y error messages for url: " (dollar x)))
-    (pipe
-      (pa11y -r json (dollar x))
-      (jq .[])
-      (jq .message)))))
+    (local type (eval(get_type_from_url (dollar url))))
+    (if (eq (dollar type) notice)
+      (append notices (dollar type))))))
 
-(def foo (lambda (x y z)
-  (do
-    (echo "hello")
-    (echo "goodbye"))))
-
-(defn say-hello (echo "hello"))
-
-(defn say-message (message) (echo (dollar message)))
+(echo (inspect errors))
+(echo (inspect warnings))
+(echo (inspect notices))

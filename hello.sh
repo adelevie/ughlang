@@ -1,36 +1,30 @@
 #!/bin/bash
 
 urls=("https://18f.gsa.gov/2015/10/26/micro-purchase-criteria-announcement/" "https://18f.gsa.gov/2015/10/29/welcome-to-betafec/" "https://18f.gsa.gov/2015/10/22/preventing-technical-debt/")
-anon_function_BOAEJDZWHDTHQCHWTXNS () {
-  local x=$1; shift
+get_type_from_url () {
+  local url=$1; shift
+  
+  pa11y -r json $url | jq .[] | jq .type
+}
+
+errors=()
+warnings=()
+notices=()
+function_1 () {
+  local url=$1; shift
   
   
-  echo "Getting a11y error messages for url: "$x
-  pa11y -r json $x | jq .[] | jq .message
+  local type=`get_type_from_url $url`
+  
+  if [ "$type" -eq "notice" ]; then
+    notices=("${notices[@]}" $type)
+  fi
 
 }
 
 for i in ${urls[@]}; do
-  anon_function_BOAEJDZWHDTHQCHWTXNS $i
+  function_1 $i
 done
-foo=anon_function_APEUOKUYDJMUUJQBTTKI () {
-  local x=$1; shift
-  local y=$1; shift
-  local z=$1; shift
-  
-  
-  echo "hello"
-  echo "goodbye"
-
-}
-say_hello () {
-  
-  echo "hello"
-}
-
-say_message () {
-  local message=$1; shift
-  
-  echo $message
-}
-
+echo ${errors[@]}
+echo ${warnings[@]}
+echo ${notices[@]}

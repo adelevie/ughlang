@@ -1,0 +1,11 @@
+<% if false_block -%>
+  if <%= condition %>; then
+    <%= true_block %>
+  else
+    <%= false_block %>
+  fi
+  <% else %>
+  if <%= condition %>; then
+    <%= true_block %>
+  fi
+<% end %>
