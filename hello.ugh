@@ -13,7 +13,7 @@
 (deflist warnings)
 (deflist notices)
 
-(each (inspect urls) (lamba (url)
+(each (inspect urls) (lambda (url)
   (do
     (local type (eval(get_type_from_url (dollar url))))
     (if (eq (dollar type) notice)
